@@ -1,0 +1,52 @@
+! Title: Virgin EasyList subset — Phase 3 ABP network filter test set
+! Version: 20260830
+! Homepage: https://easylist.to/
+! Virgin: minimal builtin for Phase 3 functional tests (Sec 69)
+
+! --- Core: known-ad -> block (no options) ---
+||doubleclick.net^
+||googlesyndication.com^
+||google-analytics.com^
+||googletagmanager.com^
+
+! --- Third-party constrained (Sec 69 third-party) ---
+||facebook.net^$third-party
+||facebook.com^$third-party
+
+! --- Tracker generic ---
+||analytics.example^
+||tracker.example^
+||adserver.example^
+
+! --- Resource-type constrained (Sec 69 resource-type) ---
+||ads.example^$image,script
+||cdn.example^$stylesheet
+||font.example^$font
+
+! --- Domain-specific (Sec 69 domain-specific) ---
+||tracker.example^$domain=example.com
+||tracker.example^$domain=~other.com
+||ads.example^$domain=specific.example|~excluded.example
+||domainonly.example^$domain=example.com
+
+! --- Exception rules (Sec 69 exception) ---
+@@||allow.example^$document
+@@||tracker.example^$domain=allow.example
+@@||ads.example^$image,domain=allowimage.example
+
+! --- Cosmetic (Phase 5 — Sec 16 minimal per-domain, no global bloat) ---
+example.com##.ad-banner
+example.com##.sponsored-slot
+example.com##[data-ad-container]
+example.com,example.org##.shared-ad
+##.global-ad
+~excluded.example##.not-on-excluded
+example.com#@#.sponsored-slot
+example.com#@#[data-ad-container]
+
+! --- Edge: start/end anchor ---
+|https://ads.example/start^
+ads.example/end|
+
+! --- Normal CDN should NOT block (test allow) ---
+! Note: cdn.example host without filter should pass for document type

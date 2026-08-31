@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=Virgin
+GenericName=Privacy Browser
+Comment=Privacy-first native browser — Chromium renders, Virgin controls trust
+Exec=virgin %U
+Icon=virgin
+Terminal=false
+Type=Application
+Categories=Network;WebBrowser;Qt;
+StartupWMClass=virgin
+MimeType=x-scheme-handler/http;x-scheme-handler/https;text/html;

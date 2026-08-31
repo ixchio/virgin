@@ -1,0 +1,7 @@
+<RCC>
+  <qresource prefix="/virgin">
+    <file alias="logo.svg">packaging/linux/virgin.svg</file>
+    <file alias="logo-192.png">packaging/linux/virgin-logo-192.png</file>
+    <file alias="scripts/youtube-adblock.js">resources/scripts/youtube-adblock.js</file>
+  </qresource>
+</RCC>

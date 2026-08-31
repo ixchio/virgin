@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: "17 4 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build toolchain image
+        run: docker build --pull -f Dockerfile.build -t virgin-build:qt6 .
+      - name: GCC hardened build and tests
+        run: |
+          docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/src" virgin-build:qt6 bash -lc '
+            cmake -S /src -B /src/build-gcc -G Ninja -DCMAKE_BUILD_TYPE=Release -DVIRGIN_WARNINGS_AS_ERRORS=ON &&
+            cmake --build /src/build-gcc -j2 &&
+            ctest --test-dir /src/build-gcc --output-on-failure'
+      - name: Clang build and tests
+        run: |
+          docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/src" virgin-build:qt6 bash -lc '
+            cmake -S /src -B /src/build-clang -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=clang++ -DVIRGIN_WARNINGS_AS_ERRORS=ON &&
+            cmake --build /src/build-clang -j2 &&
+            ctest --test-dir /src/build-clang --output-on-failure'
+      - name: ASan and UBSan tests
+        run: |
+          docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/src" virgin-build:qt6 bash -lc '
+            cmake -S /src -B /src/build-sanitize -G Ninja -DCMAKE_BUILD_TYPE=Debug -DVIRGIN_ENABLE_SANITIZERS=ON -DVIRGIN_ENABLE_HARDENING=OFF &&
+            cmake --build /src/build-sanitize -j2 &&
+            ASAN_OPTIONS=detect_leaks=1 ctest --test-dir /src/build-sanitize --output-on-failure'
+      - name: Build portable AppImage
+        run: ./tools/build_appimage.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: virgin-linux-x86_64
+          path: dist/Virgin-0.1.0-x86_64.AppImage
+          if-no-files-found: error

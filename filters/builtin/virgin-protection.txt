@@ -1,0 +1,20 @@
+! Title: Virgin maintained site protections
+! These narrow rules complement EasyList/EasyPrivacy and are always compiled.
+
+! YouTube first-party ad endpoints and identifiable third-party ad media.
+||youtube.com/pagead/
+||youtube.com/youtubei/v1/player/ad_break
+||youtube.com/get_midroll_
+*_ad_*$media,domain=youtube.com,third-party
+
+! YouTube display, feed, companion, and player-overlay ads.
+youtube.com###masthead-ad
+youtube.com###player-ads
+youtube.com##ytd-ad-slot-renderer
+youtube.com##ytd-display-ad-renderer
+youtube.com##ytd-in-feed-ad-layout-renderer
+youtube.com##ytd-promoted-sparkles-web-renderer
+youtube.com##ytd-banner-promo-renderer
+youtube.com##ytd-companion-slot-renderer
+youtube.com##.ytp-ad-overlay-container
+youtube.com##.ytp-ad-player-overlay

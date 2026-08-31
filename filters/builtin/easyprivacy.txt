@@ -1,0 +1,10 @@
+! Title: Virgin EasyPrivacy subset — Phase 3
+! Version: 20260830
+! Tracker blocking (Sec 69)
+
+||pixel.example^
+||beacon.example^$ping
+||collect.example^$xmlhttprequest
+||analytics.example^$third-party,script
+||tracking.example^$image,third-party
+||pixel.tracker.com^$third-party
