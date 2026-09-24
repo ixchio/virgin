@@ -1,6 +1,6 @@
 # Virgin Browser
 
-Virgin is a Linux-first, local-first browser shell built with C++20, Qt 6 Widgets, and Qt WebEngine. Chromium renders pages; Virgin owns the native UI, profiles, permissions, navigation policy, blocker, history, bookmarks, sessions, and downloads.
+Virgin is a Linux, local-first browser shell built with C++20, Qt 6 Widgets, and Qt WebEngine. Chromium renders pages; Virgin owns the native UI, profiles, permissions, navigation policy, blocker, history, bookmarks, sessions, and downloads.
 
 This repository is an engineering preview, not a security-audited 1.0 release. It has no Virgin cloud, account, sync, analytics SDK, crash uploader, or telemetry endpoint. Websites, search providers, DNS, and configured filter-list sources still receive the network traffic required to use them.
 
