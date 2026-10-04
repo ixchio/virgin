@@ -31,6 +31,7 @@ rm -f -- "${OUTPUT}"
   --appdir "${app_dir}" \
   --desktop-file /src/packaging/linux/virgin.desktop \
   --icon-file /src/packaging/linux/virgin.svg \
+  --library /usr/lib/x86_64-linux-gnu/libfribidi.so.0 \
   --library /usr/lib/x86_64-linux-gnu/libOpenGL.so.0 \
   --plugin qt \
   --output appimage
