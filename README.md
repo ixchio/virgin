@@ -4,11 +4,16 @@ Virgin is a local-first browser shell built with C++20, Qt 6 Widgets, and Qt Web
 
 This repository is an engineering preview, not a security-audited 1.0 release. It has no Virgin cloud, account, sync, analytics SDK, crash uploader, or telemetry endpoint. Websites, search providers, DNS, and configured filter-list sources still receive the network traffic required to use them.
 
+## Download v0.2.0
+
+- **Ubuntu 22.04+ (x86_64):** [`Virgin-0.2.0-x86_64.AppImage`](https://github.com/ixchio/virgin/releases/download/v0.2.0/Virgin-0.2.0-x86_64.AppImage)
+- **Windows (x64):** [`Virgin-0.2.0-win64.zip`](https://github.com/ixchio/virgin/releases/download/v0.2.0/Virgin-0.2.0-win64.zip)
+
+All releases and their notes are available on the [GitHub Releases page](https://github.com/ixchio/virgin/releases).
+
 ## Install on Ubuntu 22.04+
 
-Hey, suckers — welcome to Virgin. It arrives as one AppImage, needs no relationship with `sudo`, and tries to stop third-party trackers from making the first move.
-
-Download [`Virgin-0.2.0-x86_64.AppImage`](https://github.com/ixchio/virgin/releases/download/v0.2.0/Virgin-0.2.0-x86_64.AppImage), then either double-click it in Files or run:
+Virgin ships as one AppImage. Download it, then either double-click it in Files or run:
 
 ```bash
 chmod +x Virgin-0.2.0-x86_64.AppImage
@@ -23,17 +28,35 @@ APPIMAGE_EXTRACT_AND_RUN=1 ./Virgin-0.2.0-x86_64.AppImage
 
 The AppImage is built and runtime-tested against Ubuntu 22.04 (GLIBC 2.35), so it supports Ubuntu 22.04 and newer desktop releases. Ubuntu 20.04 and older are not supported by this Qt WebEngine build.
 
-## Install on Windows
+### Add to the Linux application menu
 
-Download [`Virgin-0.2.0-win64.zip`](https://github.com/ixchio/virgin/releases/download/v0.2.0/Virgin-0.2.0-win64.zip), extract it, and launch `virgin.exe`. Keep the extracted folder intact: the `resources`, Qt runtime, and `share/virgin/filters` folders are required next to the executable.
-
-To install the repository build into your user account and add **Virgin** to the application menu:
+From a repository checkout containing the downloaded or locally built AppImage, run:
 
 ```bash
-./tools/install_appimage.sh
+./tools/install_appimage.sh /path/to/Virgin-0.2.0-x86_64.AppImage
 ```
 
-That command installs only for the current user, so it does not need `sudo`. Your browser data remains under `~/.local/share/virgin/`. Virgin begins with a clean profile; what you do with the tab count afterward is between you and your RAM.
+The command installs only for the current user, creates a `virgin` launcher, and adds **Virgin** to the application menu. It does not require `sudo`.
+
+## Install on Windows x64
+
+Extract `Virgin-0.2.0-win64.zip`, then launch `virgin.exe`. The package is portable: it does not have a separate installer or require administrator privileges.
+
+Keep the extracted folder intact. `virgin.exe`, `resources`, the Qt and WebEngine runtime files, and `share/virgin/filters` are one package and must stay together.
+
+## Check an artifact
+
+Each release artifact exposes its bundled version information without opening a browser window:
+
+```bash
+APPIMAGE_EXTRACT_AND_RUN=1 ./Virgin-0.2.0-x86_64.AppImage --runtime-version
+```
+
+Use `--runtime-version` on the Windows executable from PowerShell as well:
+
+```powershell
+.\virgin.exe --runtime-version
+```
 
 ## Implemented
 
@@ -113,6 +136,8 @@ APPIMAGE_EXTRACT_AND_RUN=1 ./dist/Virgin-0.2.0-x86_64.AppImage
 
 `APPIMAGE_EXTRACT_AND_RUN=1` is only needed on systems where FUSE is unavailable.
 Use `--runtime-version` to verify the Qt and Chromium versions embedded in an artifact.
+
+The release workflow also compiles, tests, and packages the Windows x64 build with MSVC 2022 and Qt 6.8 before publishing a tag.
 
 ## Security invariants
 
