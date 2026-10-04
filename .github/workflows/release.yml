@@ -35,13 +35,19 @@ jobs:
         with:
           version: 6.8.3
           arch: win64_msvc2022_64
-          modules: qtwebengine
+          modules: qtwebengine qtwebchannel
+      - name: Activate MSVC 2022
+        uses: ilammy/msvc-dev-cmd@v1
       - name: Configure, build, and test
         shell: pwsh
         run: |
-          cmake -S . -B build-windows -G Ninja -DCMAKE_BUILD_TYPE=Release -DVIRGIN_WARNINGS_AS_ERRORS=ON
+          $ErrorActionPreference = 'Stop'
+          cmake -S . -B build-windows -G Ninja -DCMAKE_CXX_COMPILER=cl -DCMAKE_BUILD_TYPE=Release -DVIRGIN_WARNINGS_AS_ERRORS=ON
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           cmake --build build-windows --parallel 2
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           ctest --test-dir build-windows --output-on-failure
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Create portable Windows package
         shell: pwsh
         run: |
