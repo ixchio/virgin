@@ -35,7 +35,7 @@ jobs:
         with:
           version: 6.8.3
           arch: win64_msvc2022_64
-          modules: qtwebengine qtwebchannel
+          modules: qtwebengine qtwebchannel qtpositioning
       - name: Activate MSVC 2022
         uses: ilammy/msvc-dev-cmd@v1
       - name: Configure, build, and test
