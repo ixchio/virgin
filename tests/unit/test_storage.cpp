@@ -1,4 +1,5 @@
 #include "storage/Database.hpp"
+#include "storage/HistoryStore.hpp"
 #include "storage/SessionStore.hpp"
 
 #include <QCoreApplication>
@@ -44,6 +45,14 @@ int main(int argc, char* argv[]) {
         check(sessions.restoreWindow(restored), "session survives process-style reopen");
         check(restored.tabs.size() == 2 && restored.activeIndex == 1,
               "session restores all tabs and active index");
+    }
+    {
+        virgin::storage::HistoryStore history(databasePath);
+        history.enqueueVisit(QUrl("https://history.example/one"), QStringLiteral("One"));
+        history.enqueueVisit(QUrl("https://history.example/two"), QStringLiteral("Two"));
+        history.flush();
+        check(history.search(QStringLiteral("history.example")).size() == 2,
+              "history flush persists every queued visit");
     }
 
     virgin::storage::Database impossible(QStringLiteral("/dev/null/virgin.db"));

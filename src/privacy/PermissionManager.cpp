@@ -29,40 +29,30 @@ PermissionManager* PermissionManager::instanceForProfile(QWebEngineProfile* p) {
     return s_registry.value(p, nullptr);
 }
 
-PermissionManager::Decision PermissionManager::defaultForFeature(QWebEnginePermission::PermissionType f) {
-    // Sec 20: default deny
-    switch (f) {
-        case QWebEnginePermission::PermissionType::Geolocation:
-        case QWebEnginePermission::PermissionType::MediaAudioCapture:
-        case QWebEnginePermission::PermissionType::MediaVideoCapture:
-        case QWebEnginePermission::PermissionType::MediaAudioVideoCapture:
-        case QWebEnginePermission::PermissionType::DesktopVideoCapture:
-        case QWebEnginePermission::PermissionType::DesktopAudioVideoCapture:
-        case QWebEnginePermission::PermissionType::Notifications:
-            return Decision::Denied;
-        default:
-            return Decision::Denied;
-    }
+PermissionManager::Decision PermissionManager::defaultForFeature(PermissionFeature f) {
+    Q_UNUSED(f)
+    // Sec 20: default deny. Unknown types deliberately stay denied too.
+    return Decision::Denied;
 }
 
-QString PermissionManager::keyFor(const QUrl& origin, QWebEnginePermission::PermissionType f) const {
+QString PermissionManager::keyFor(const QUrl& origin, PermissionFeature f) const {
     const QString normalizedOrigin = origin.adjusted(QUrl::RemovePath | QUrl::RemoveQuery | QUrl::RemoveFragment)
                                          .toString(QUrl::FullyEncoded);
     return normalizedOrigin + "#" + QString::number(static_cast<int>(f));
 }
 
-PermissionManager::Decision PermissionManager::storedDecision(const QUrl& origin, QWebEnginePermission::PermissionType f) const {
+PermissionManager::Decision PermissionManager::storedDecision(const QUrl& origin, PermissionFeature f) const {
     QString k = keyFor(origin, f);
     auto it = decisions_.find(k);
     if (it != decisions_.end()) return it.value();
     return defaultForFeature(f);
 }
 
-bool PermissionManager::hasEntry(const QUrl& origin, QWebEnginePermission::PermissionType f) const {
+bool PermissionManager::hasEntry(const QUrl& origin, PermissionFeature f) const {
     return decisions_.contains(keyFor(origin, f));
 }
 
-PermissionManager::Decision PermissionManager::requestPermission(const QUrl& origin, QWebEnginePermission::PermissionType feature) {
+PermissionManager::Decision PermissionManager::requestPermission(const QUrl& origin, PermissionFeature feature) {
     // Sec 20: policy -> saved -> prompt
     QString k = keyFor(origin, feature);
     if (decisions_.contains(k)) return decisions_.value(k);
@@ -70,7 +60,7 @@ PermissionManager::Decision PermissionManager::requestPermission(const QUrl& ori
     return defaultForFeature(feature);
 }
 
-void PermissionManager::setPermission(const QUrl& origin, QWebEnginePermission::PermissionType feature, Decision d) {
+void PermissionManager::setPermission(const QUrl& origin, PermissionFeature feature, Decision d) {
     decisions_.insert(keyFor(origin, feature), d);
     save();
 }

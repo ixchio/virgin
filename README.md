@@ -1,25 +1,31 @@
 # Virgin Browser
 
-Virgin is a Linux, local-first browser shell built with C++20, Qt 6 Widgets, and Qt WebEngine. Chromium renders pages; Virgin owns the native UI, profiles, permissions, navigation policy, blocker, history, bookmarks, sessions, and downloads.
+Virgin is a local-first browser shell built with C++20, Qt 6 Widgets, and Qt WebEngine. Chromium renders pages; Virgin owns the native UI, profiles, permissions, navigation policy, blocker, history, bookmarks, sessions, and downloads.
 
 This repository is an engineering preview, not a security-audited 1.0 release. It has no Virgin cloud, account, sync, analytics SDK, crash uploader, or telemetry endpoint. Websites, search providers, DNS, and configured filter-list sources still receive the network traffic required to use them.
 
-## Install on Ubuntu
+## Install on Ubuntu 22.04+
 
 Hey, suckers — welcome to Virgin. It arrives as one AppImage, needs no relationship with `sudo`, and tries to stop third-party trackers from making the first move.
 
-Download [`Virgin-0.1.0-x86_64.AppImage`](https://github.com/ixchio/virgin/releases/download/v0.1.0/Virgin-0.1.0-x86_64.AppImage), then either double-click it in Files or run:
+Download [`Virgin-0.2.0-x86_64.AppImage`](https://github.com/ixchio/virgin/releases/download/v0.2.0/Virgin-0.2.0-x86_64.AppImage), then either double-click it in Files or run:
 
 ```bash
-chmod +x Virgin-0.1.0-x86_64.AppImage
-./Virgin-0.1.0-x86_64.AppImage
+chmod +x Virgin-0.2.0-x86_64.AppImage
+./Virgin-0.2.0-x86_64.AppImage
 ```
 
 If Ubuntu complains about FUSE, Virgin is still ready; launch it without mounting:
 
 ```bash
-APPIMAGE_EXTRACT_AND_RUN=1 ./Virgin-0.1.0-x86_64.AppImage
+APPIMAGE_EXTRACT_AND_RUN=1 ./Virgin-0.2.0-x86_64.AppImage
 ```
+
+The AppImage is built and runtime-tested against Ubuntu 22.04 (GLIBC 2.35), so it supports Ubuntu 22.04 and newer desktop releases. Ubuntu 20.04 and older are not supported by this Qt WebEngine build.
+
+## Install on Windows
+
+Download [`Virgin-0.2.0-win64.zip`](https://github.com/ixchio/virgin/releases/download/v0.2.0/Virgin-0.2.0-win64.zip), extract it, and launch `virgin.exe`. Keep the extracted folder intact: the `resources`, Qt runtime, and `share/virgin/filters` folders are required next to the executable.
 
 To install the repository build into your user account and add **Virgin** to the application menu:
 
@@ -43,12 +49,12 @@ The future local agent API from the design document is intentionally not exposed
 
 ## Requirements
 
-- CMake 3.24+
+- CMake 3.22+
 - Ninja
 - C++20 compiler
-- Qt 6.8+ with Widgets, WebEngine, Network, SQL, and the SQLite SQL driver
+- Qt 6.2+ with Widgets, WebEngine, Network, SQL, and the SQLite SQL driver
 
-Ubuntu packages vary by release. On a release carrying Qt 6.8+:
+Ubuntu 22.04+ packages:
 
 ```bash
 sudo apt install cmake ninja-build g++ qt6-base-dev qt6-webengine-dev \
@@ -57,7 +63,7 @@ sudo apt install cmake ninja-build g++ qt6-base-dev qt6-webengine-dev \
 
 ## Build and test
 
-The reproducible path uses Ubuntu 26.04 and Qt 6.10:
+The reproducible release path uses Ubuntu 22.04 and Qt 6.2:
 
 ```bash
 ./tools/container_build.sh
@@ -102,7 +108,7 @@ Bundled AppImage (built and tested inside the pinned Qt container):
 
 ```bash
 ./tools/build_appimage.sh
-APPIMAGE_EXTRACT_AND_RUN=1 ./dist/Virgin-0.1.0-x86_64.AppImage
+APPIMAGE_EXTRACT_AND_RUN=1 ./dist/Virgin-0.2.0-x86_64.AppImage
 ```
 
 `APPIMAGE_EXTRACT_AND_RUN=1` is only needed on systems where FUSE is unavailable.
@@ -112,7 +118,7 @@ Use `--runtime-version` to verify the Qt and Chromium versions embedded in an ar
 
 - Sandbox escape switches (`QTWEBENGINE_DISABLE_SANDBOX`, `--no-sandbox`, and `--disable-sandbox`) abort startup.
 - Private windows never write Virgin history/session records; their native WebEngine profile is destroyed after the last window closes.
-- Certificate errors reject by default; only main-frame errors that Qt marks overridable can reach an explicit override dialog.
+- Certificate errors reject by default; only main-frame errors that Qt 6.8+ marks overridable can reach an explicit override dialog. Older Qt builds fail closed because that API cannot prove an error belongs to the main frame.
 - Downloads are sanitized, uniquely named, never auto-executed, and suspicious extensions require confirmation.
 - Remote pages cannot launch external applications without a user link gesture and explicit confirmation.
 - Filter lists are bounded data. Remote scriptlets are not executed, corrupt caches are rejected, and active rules swap atomically.

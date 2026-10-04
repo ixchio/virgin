@@ -8,8 +8,10 @@
 #include <QMenuBar>
 #include <QKeySequence>
 #include <QLabel>
+#include <QTimer>
 #include <QWebEnginePage>
-#include <QWebEnginePermission>
+
+#include "privacy/PermissionTypes.hpp"
 
 namespace virgin::profiles { class VirginProfile; }
 namespace virgin::storage { class SettingsStore; class HistoryStore; class BookmarkStore; class SessionStore; }
@@ -71,7 +73,7 @@ private slots:
     void onTabCrashedChanged(bool crashed);
     void onFullScreenRequested(bool enable);
     void onOmniboxReturnPressed(const QString& text);
-    void onPermissionRequested(const QUrl& origin, QWebEnginePermission::PermissionType feature);
+    void onPermissionRequested(const QUrl& origin, virgin::privacy::PermissionFeature feature);
     void onCertificateError(const QUrl& url, const QString& errorString, bool overridable);
     void onExternalSchemeRequested(const QUrl& url);
     void onRequestBlocked(const virgin::adblock::BlockResult& result, const QUrl& requestUrl, const QUrl& firstParty);
@@ -89,6 +91,7 @@ private:
     void updatePrivateIndicator();
     void updatePrivacyPanel();
     void updateShieldBadge();
+    void refreshHomeUrl();
     void saveSession();
     bool restoreSession();
 
@@ -115,6 +118,7 @@ private:
 
     virgin::ui::PrivacyPanel* privacyPanel_ = nullptr;
     virgin::downloads::DownloadShelf* downloadShelf_ = nullptr;
+    QTimer* sessionSaveTimer_ = nullptr;
 
     QUrl homeUrl_ = QUrl("virgin://newtab");
     bool isFullScreen_ = false;

@@ -1,6 +1,6 @@
-cmake_minimum_required(VERSION 3.24)
+cmake_minimum_required(VERSION 3.22)
 
-find_package(Qt6 6.8 QUIET COMPONENTS Core Test WebEngineCore)
+find_package(Qt6 6.2 QUIET COMPONENTS Core Test WebEngineCore)
 
 if(Qt6Test_FOUND)
     # Functional blocker tests.
@@ -46,6 +46,7 @@ if(Qt6Test_FOUND)
     qt_add_executable(test_storage
         unit/test_storage.cpp
         ../src/storage/Database.cpp
+        ../src/storage/HistoryStore.cpp
         ../src/storage/SessionStore.cpp
     )
     target_include_directories(test_storage PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../src)
@@ -56,8 +57,8 @@ if(Qt6Test_FOUND)
     endif()
     add_test(NAME Storage COMMAND test_storage)
 
-    # Manual hot-path benchmark. Latency is host-dependent and is reported by
-    # the executable rather than treated as a deterministic unit-test result.
+    # Release benchmark gate. The executable reports host-specific latency and
+    # returns non-zero when its explicit latency budget is missed.
     qt_add_executable(adblock_benchmark
         benchmarks/adblock_benchmark.cpp
         ../src/adblock/AdBlockEngine.cpp
@@ -76,6 +77,10 @@ if(Qt6Test_FOUND)
     )
     target_link_libraries(adblock_benchmark PRIVATE Qt6::Core Qt6::WebEngineCore)
     virgin_set_warnings(adblock_benchmark)
+    if(NOT VIRGIN_ENABLE_SANITIZERS)
+        add_test(NAME AdBlockBenchmark COMMAND adblock_benchmark)
+        set_tests_properties(AdBlockBenchmark PROPERTIES LABELS "benchmark")
+    endif()
 
     # Fuzz smoke test (Sec 53)
     qt_add_executable(filter_parser_fuzz_smoke

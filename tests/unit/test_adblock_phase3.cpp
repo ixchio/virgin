@@ -46,7 +46,14 @@ int main(int argc, char* argv[]) {
 *_ad_*$media,domain=youtube.com,third-party
 @@||allow.example^$document
 @@||tracker.example^$domain=allow.example
+/adserver.*banner/$script
+@@/adserver.*safe-banner/$script
+ads*banner$script
 )";
+
+    const QString longNeedle(300, QLatin1Char('x'));
+    raw += longNeedle + "$script\n";
+    raw += "@@" + longNeedle + "-allowed$script\n";
 
     auto compiled = FilterCompiler::compile(raw);
 
@@ -84,6 +91,11 @@ int main(int argc, char* argv[]) {
         {"YouTube identifiable ad media blocked", "https://rr1.googlevideo.com/videoplayback?id=clip_ad_123", "https://www.youtube.com/watch?v=abc", "media", true},
         {"YouTube normal media preserved", "https://rr1.googlevideo.com/videoplayback?id=clip_123", "https://www.youtube.com/watch?v=abc", "media", false},
         {"YouTube rule remains site scoped", "https://rr1.googlevideo.com/videoplayback?id=clip_ad_123", "https://example.com", "media", false},
+        {"regular expression blocks reachable URL", "https://cdn.example/adserver/v1/banner.js", "https://example.com", "script", true},
+        {"regular expression exception wins", "https://cdn.example/adserver/safe-banner.js", "https://example.com", "script", false},
+        {"wildcard regex blocks reachable URL", "https://cdn.example/assets/ads123banner.js", "https://example.com", "script", true},
+        {"long substring blocks without Aho index", QStringLiteral("https://cdn.example/assets/") + longNeedle + QStringLiteral(".js"), "https://example.com", "script", true},
+        {"long substring exception wins", QStringLiteral("https://cdn.example/assets/") + longNeedle + QStringLiteral("-allowed.js"), "https://example.com", "script", false},
     };
 
     int passed = 0, failed = 0;

@@ -186,15 +186,25 @@ bool AdBlockEngine::checkTokenAndAho(const RuleIndex& index, const AhoCorasick& 
     return false;
 }
 
-bool AdBlockEngine::checkRegex(const RuleIndex& index, const std::vector<NetworkRule>& rules,
-                               const network::RequestContext& ctx, const QString& hostLower, const QString& urlLower, BlockResult& out) const {
-    // Regex is the final slow path, but selective literal tokens keep it from
-    // degenerating into a scan of every regex in a full filter list.
-    const auto candidates = index.candidatesFor(urlLower);
-    for (int idx : candidates) {
+bool AdBlockEngine::checkLinear(const QVector<int>& ruleIds, const std::vector<NetworkRule>& rules,
+                                const network::RequestContext& ctx, const QString& hostLower, const QString& urlLower, BlockResult& out) const {
+    for (int idx : ruleIds) {
         if (idx < 0 || static_cast<size_t>(idx) >= rules.size()) continue;
         const auto& r = rules[static_cast<size_t>(idx)];
-        if (r.kind != MatchKind::Regex) continue;
+        if (!ruleMatches(r, ctx, hostLower, urlLower)) continue;
+        out = {r.action == RuleAction::Block, false, false, r.id, r.rawPattern, hostLower};
+        return true;
+    }
+    return false;
+}
+
+bool AdBlockEngine::checkRegex(const QVector<int>& ruleIds, const std::vector<NetworkRule>& rules,
+                               const network::RequestContext& ctx, const QString& hostLower, const QString& urlLower, BlockResult& out) const {
+    // Regex rules cannot safely use exact-token indexing: a token is only a
+    // hint, while matching is governed by the complete regular expression.
+    for (int idx : ruleIds) {
+        if (idx < 0 || static_cast<size_t>(idx) >= rules.size()) continue;
+        const auto& r = rules[static_cast<size_t>(idx)];
         if (!ruleMatches(r, ctx, hostLower, urlLower)) continue;
         out = {r.action == RuleAction::Block, false, false, r.id, r.rawPattern, hostLower};
         return true;
@@ -257,8 +267,12 @@ BlockResult AdBlockEngine::shouldBlock(const network::RequestContext& ctx) const
         if (checkTokenAndAho(rules->allowTokenIndex, rules->allowAho, rules->allowRules, ctx, host, urlLower, allowRes)) {
             return allowRes;
         }
-        // Stage 5 regex allow
-        if (checkRegex(rules->allowTokenIndex, rules->allowRules, ctx, host, urlLower, allowRes)) {
+        // Stage 5 long-pattern allow fallback
+        if (checkLinear(rules->allowLinearIds, rules->allowRules, ctx, host, urlLower, allowRes)) {
+            return allowRes;
+        }
+        // Stage 6 regex allow
+        if (checkRegex(rules->allowRegexIds, rules->allowRules, ctx, host, urlLower, allowRes)) {
             return allowRes;
         }
     }
@@ -270,10 +284,12 @@ BlockResult AdBlockEngine::shouldBlock(const network::RequestContext& ctx) const
     } else if (checkExact(rules->exactBlockMap, rules->blockRules, ctx, host, urlLower, blockRes)) matched = true;
     // Stage 2 suffix trie
     else if (checkSuffix(rules->blockSuffixTrie, rules->blockRules, ctx, host, urlLower, blockRes)) matched = true;
-    // Stage 4 Aho (Stage 3 token index is used to filter regex, but Aho is primary for substring)
+    // Stage 4 Aho substring index
     else if (checkTokenAndAho(rules->blockTokenIndex, rules->blockAho, rules->blockRules, ctx, host, urlLower, blockRes)) matched = true;
-    // Stage 5 regex slow path
-    else if (checkRegex(rules->blockTokenIndex, rules->blockRules, ctx, host, urlLower, blockRes)) matched = true;
+    // Stage 5 long-pattern fallback
+    else if (checkLinear(rules->blockLinearIds, rules->blockRules, ctx, host, urlLower, blockRes)) matched = true;
+    // Stage 6 regex slow path
+    else if (checkRegex(rules->blockRegexIds, rules->blockRules, ctx, host, urlLower, blockRes)) matched = true;
 
     if (!matched) return {};
 

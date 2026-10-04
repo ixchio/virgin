@@ -97,14 +97,18 @@ void VirginProfile::applyPrivacySettings() {
     s->setAttribute(QWebEngineSettings::WebRTCPublicInterfacesOnly,
                     isOffTheRecord() || webRtcPublicOnly_); // Sec 21 privacy
     s->setAttribute(QWebEngineSettings::DnsPrefetchEnabled, false);
+#if QT_VERSION >= QT_VERSION_CHECK(6, 4, 0)
     s->setAttribute(QWebEngineSettings::NavigateOnDropEnabled, false);
+#endif
     s->setAttribute(QWebEngineSettings::LocalContentCanAccessRemoteUrls, false); // Sec 27
     s->setAttribute(QWebEngineSettings::LocalContentCanAccessFileUrls, false);
     s->setAttribute(QWebEngineSettings::JavascriptCanOpenWindows, true); // gated via VirginPage
     s->setAttribute(QWebEngineSettings::AllowRunningInsecureContent, false);
     s->setAttribute(QWebEngineSettings::AutoLoadIconsForPage, true);
     s->setAttribute(QWebEngineSettings::HyperlinkAuditingEnabled, false); // no ping
+#if QT_VERSION >= QT_VERSION_CHECK(6, 6, 0)
     s->setAttribute(QWebEngineSettings::ReadingFromCanvasEnabled, !strict_); // Sec 22
+#endif
     s->setAttribute(QWebEngineSettings::PlaybackRequiresUserGesture, false);
     s->setAttribute(QWebEngineSettings::PdfViewerEnabled, true);
     s->setAttribute(QWebEngineSettings::FullScreenSupportEnabled, true);

@@ -46,7 +46,11 @@ QString Paths::builtinFiltersDir() {
     const QString source = QStringLiteral(VIRGIN_SOURCE_FILTER_DIR);
     if (QDir(source).exists()) return source;
 #endif
+#ifdef Q_OS_WIN
+    return QCoreApplication::applicationDirPath() + "/share/virgin/filters";
+#else
     return QCoreApplication::applicationDirPath() + "/../share/virgin/filters";
+#endif
 }
 QString Paths::sessionsDir() { return virginRoot() + "/sessions"; }
 QString Paths::crashDir() { return virginRoot() + "/crash"; }

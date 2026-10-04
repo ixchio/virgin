@@ -7,6 +7,7 @@ namespace virgin::security {
 
 class UrlSafety {
 public:
+    static bool isScriptLikeScheme(const QUrl& url);
     static bool isUrlAllowedForNavigation(const QUrl& url,
                                           QWebEnginePage::NavigationType type,
                                           bool isMainFrame);

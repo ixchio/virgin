@@ -8,7 +8,7 @@
 namespace virgin::ui {
 
 PermissionDialog::PermissionDialog(const QUrl& origin,
-                                   QWebEnginePermission::PermissionType feature,
+                                   virgin::privacy::PermissionFeature feature,
                                    QWidget* parent)
     : QDialog(parent), origin_(origin), feature_(feature)
 {
@@ -17,14 +17,11 @@ PermissionDialog::PermissionDialog(const QUrl& origin,
     setFixedSize(380, 180);
 
     QString featureName;
-    switch (feature) {
-        case QWebEnginePermission::PermissionType::Geolocation: featureName = "location"; break;
-        case QWebEnginePermission::PermissionType::MediaAudioCapture: featureName = "microphone"; break;
-        case QWebEnginePermission::PermissionType::MediaVideoCapture: featureName = "camera"; break;
-        case QWebEnginePermission::PermissionType::MediaAudioVideoCapture: featureName = "camera & microphone"; break;
-        case QWebEnginePermission::PermissionType::Notifications: featureName = "notifications"; break;
-        default: featureName = "unknown permission"; break;
-    }
+    if (feature == virgin::privacy::PermissionGeolocation) featureName = "location";
+    else if (feature == virgin::privacy::PermissionMediaAudioCapture) featureName = "microphone";
+    else if (feature == virgin::privacy::PermissionMediaVideoCapture) featureName = "camera";
+    else if (feature == virgin::privacy::PermissionMediaAudioVideoCapture) featureName = "camera & microphone";
+    else featureName = "unknown permission";
 
     auto* layout = new QVBoxLayout(this);
     auto* label = new QLabel(QString("\"%1\" wants to use your %2").arg(origin.host(), featureName), this);

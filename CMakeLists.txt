@@ -1,8 +1,8 @@
-cmake_minimum_required(VERSION 3.24)
+cmake_minimum_required(VERSION 3.22)
 
 project(
     Virgin
-    VERSION 0.1.0
+    VERSION 0.2.0
     DESCRIPTION "Virgin — Privacy-First Native Browser (Chromium renders. Virgin controls trust.)"
     LANGUAGES CXX
 )
@@ -21,13 +21,19 @@ option(VIRGIN_ENABLE_HARDENING "Enable security hardening flags" ON)
 option(VIRGIN_ENABLE_SANITIZERS "Enable sanitizers in Debug" OFF)
 option(VIRGIN_WARNINGS_AS_ERRORS "Treat warnings as errors" OFF)
 
+configure_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/app/Version.hpp.in
+    ${CMAKE_CURRENT_BINARY_DIR}/generated/app/Version.hpp
+    @ONLY
+)
+
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 include(CompilerWarnings)
 include(Hardening)
 include(Sanitizers)
 
-find_package(Qt6 6.8 REQUIRED COMPONENTS
+find_package(Qt6 6.2 REQUIRED COMPONENTS
     Widgets
     WebEngineWidgets
     WebEngineCore
@@ -35,7 +41,9 @@ find_package(Qt6 6.8 REQUIRED COMPONENTS
     Network
 )
 
-qt_standard_project_setup()
+if(COMMAND qt_standard_project_setup)
+    qt_standard_project_setup()
+endif()
 
 # ---- Sources ----
 set(VIRGIN_SOURCES
@@ -119,6 +127,7 @@ set(VIRGIN_HEADERS
     src/adblock/CosmeticEngine.hpp
     src/adblock/FilterUpdater.hpp
     src/privacy/PermissionManager.hpp
+    src/privacy/PermissionTypes.hpp
     src/privacy/CookiePolicy.hpp
     src/privacy/CookieFilter.hpp
     src/downloads/DownloadManager.hpp
@@ -150,6 +159,7 @@ qt_add_executable(virgin
 
 target_include_directories(virgin PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_BINARY_DIR}/generated
 )
 
 target_compile_definitions(virgin PRIVATE

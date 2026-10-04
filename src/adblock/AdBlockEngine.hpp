@@ -72,6 +72,10 @@ struct CompiledRules {
     AhoCorasick allowAho;
     QVector<int> blockRegexIds;
     QVector<int> allowRegexIds;
+    // Patterns too long for the Aho index remain correct through this bounded
+    // linear fallback rather than silently becoming unreachable.
+    QVector<int> blockLinearIds;
+    QVector<int> allowLinearIds;
     QVector<int> importantBlockIds;
 
     // Domain-scoped cosmetic rules.
@@ -85,16 +89,21 @@ struct CompiledRules {
 
 class RuleStore final {
 public:
-    RuleStore() { rules_.store(std::make_shared<CompiledRules>()); }
+    RuleStore() {
+        std::shared_ptr<const CompiledRules> initial = std::make_shared<CompiledRules>();
+        std::atomic_store(&rules_, std::move(initial));
+    }
     std::shared_ptr<const CompiledRules> load() const {
-        return rules_.load(std::memory_order_acquire);
+        return std::atomic_load_explicit(&rules_, std::memory_order_acquire);
     }
     void store(std::shared_ptr<const CompiledRules> rules) {
-        rules_.store(std::move(rules), std::memory_order_release);
+        std::atomic_store_explicit(&rules_, std::move(rules), std::memory_order_release);
     }
 
 private:
-    std::atomic<std::shared_ptr<const CompiledRules>> rules_;
+    // The free atomic operations for shared_ptr are supported by libstdc++ 11
+    // (Ubuntu 22.04), unlike std::atomic<shared_ptr<T>>.
+    std::shared_ptr<const CompiledRules> rules_;
 };
 
 struct BlockResult {
@@ -171,7 +180,9 @@ private:
                      const virgin::network::RequestContext& ctx, const QString& hostLower, const QString& urlLower, BlockResult& out) const;
     bool checkTokenAndAho(const RuleIndex& index, const AhoCorasick& aho, const std::vector<NetworkRule>& rules,
                           const virgin::network::RequestContext& ctx, const QString& hostLower, const QString& urlLower, BlockResult& out) const;
-    bool checkRegex(const RuleIndex& index, const std::vector<NetworkRule>& rules,
+    bool checkLinear(const QVector<int>& ruleIds, const std::vector<NetworkRule>& rules,
+                     const virgin::network::RequestContext& ctx, const QString& hostLower, const QString& urlLower, BlockResult& out) const;
+    bool checkRegex(const QVector<int>& ruleIds, const std::vector<NetworkRule>& rules,
                     const virgin::network::RequestContext& ctx, const QString& hostLower, const QString& urlLower, BlockResult& out) const;
     bool checkImportantBlocks(const QVector<int>& importantIds,
                               const std::vector<NetworkRule>& rules,

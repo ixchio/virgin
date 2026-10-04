@@ -3,6 +3,11 @@
 
 namespace virgin::security {
 
+bool UrlSafety::isScriptLikeScheme(const QUrl& url) {
+    const QString scheme = url.scheme().toLower();
+    return scheme == QStringLiteral("javascript") || scheme == QStringLiteral("vbscript");
+}
+
 bool UrlSafety::isVirginInternalUrlAllowed(const QUrl& url) {
     if (url.scheme() != "virgin") return false;
     // Sec 40: map static IDs, reject traversal, reject unrecognized hosts
@@ -28,8 +33,9 @@ bool UrlSafety::isUrlAllowedForNavigation(const QUrl& url,
     Q_UNUSED(isMainFrame)
     if (!url.isValid()) return false;
     // Block file:// from remote? Handled at VirginPage; allow file:// only if user explicitly typed
-    if (url.scheme() == "javascript") {
-        // Sec 26: restrict javascript: to page context
+    if (isScriptLikeScheme(url)) {
+        // Script URLs execute in a document context and must never be treated
+        // as navigable or externally launchable URLs.
         return false;
     }
     // Deceptive URL checks (Sec 38)

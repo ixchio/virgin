@@ -2,7 +2,8 @@
 
 #include <QDialog>
 #include <QUrl>
-#include <QWebEnginePermission>
+
+#include "privacy/PermissionTypes.hpp"
 
 namespace virgin::ui {
 
@@ -10,7 +11,7 @@ class PermissionDialog final : public QDialog {
     Q_OBJECT
 public:
     explicit PermissionDialog(const QUrl& origin,
-                              QWebEnginePermission::PermissionType feature,
+                              virgin::privacy::PermissionFeature feature,
                               QWidget* parent = nullptr);
 
     bool rememberChoice() const;
@@ -18,7 +19,7 @@ public:
 
 private:
     QUrl origin_;
-    QWebEnginePermission::PermissionType feature_;
+    virgin::privacy::PermissionFeature feature_;
     bool granted_ = false;
     bool remember_ = false;
 };

@@ -38,21 +38,28 @@ void HistoryStore::flush() {
     QQueue<PendingVisit> local;
     {
         QMutexLocker lock(&mutex_);
+        if (queue_.isEmpty() || !ready_ || !db_ || !db_->isOpen()) return;
         local = std::move(queue_);
         queue_.clear();
     }
-    if (local.isEmpty() || !ready_ || !db_ || !db_->isOpen()) return;
 
     QSqlQuery q = db_->prepare("INSERT INTO history (url, title, visited_at) VALUES (?, ?, ?)");
-    db_->exec("BEGIN TRANSACTION;");
-    while (!local.isEmpty()) {
-        auto v = local.dequeue();
-        q.addBindValue(v.url.toString());
-        q.addBindValue(v.title);
-        q.addBindValue(v.ts);
-        q.exec();
+    bool committed = db_->exec("BEGIN TRANSACTION;");
+    for (const auto& v : local) {
+        if (!committed) break;
+        q.bindValue(0, v.url.toString());
+        q.bindValue(1, v.title);
+        q.bindValue(2, v.ts);
+        committed = q.exec();
     }
-    db_->exec("COMMIT;");
+    if (committed) committed = db_->exec("COMMIT;");
+    if (committed) return;
+
+    db_->exec("ROLLBACK;");
+    QMutexLocker lock(&mutex_);
+    // Preserve old visits ahead of visits queued while the transaction ran.
+    while (!queue_.isEmpty()) local.enqueue(queue_.dequeue());
+    queue_ = std::move(local);
 }
 
 void HistoryStore::onFlushTimeout() { flush(); }

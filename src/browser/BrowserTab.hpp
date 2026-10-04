@@ -7,7 +7,8 @@
 #include <QIcon>
 #include <QWebEnginePage>
 #include <QWebEngineFullScreenRequest>
-#include <QWebEnginePermission>
+
+#include "privacy/PermissionTypes.hpp"
 
 namespace virgin::profiles { class VirginProfile; }
 
@@ -44,7 +45,7 @@ signals:
     void newTabRequested(const QUrl& url);
     void crashedChanged(bool crashed);
     void requestFullScreen(bool enable);
-    void permissionRequested(const QUrl& origin, QWebEnginePermission::PermissionType feature);
+    void permissionRequested(const QUrl& origin, virgin::privacy::PermissionFeature feature);
     void certificateError(const QUrl& url, const QString& errorString, bool overridable);
     void externalSchemeRequested(const QUrl& url);
     void popupBlocked(const QUrl& url);

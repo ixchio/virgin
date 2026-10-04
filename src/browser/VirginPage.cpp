@@ -22,8 +22,13 @@ VirginPage::VirginPage(QWebEngineProfile* profile, QObject* parent)
             this, &VirginPage::handleCertificateError);
     connect(this, &QWebEnginePage::newWindowRequested,
             this, &VirginPage::handleNewWindowRequested);
+#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
     connect(this, &QWebEnginePage::permissionRequested,
             this, &VirginPage::handlePermissionRequested);
+#else
+    connect(this, &QWebEnginePage::featurePermissionRequested,
+            this, &VirginPage::handlePermissionRequested);
+#endif
     connect(this, &QWebEnginePage::renderProcessTerminated,
             this, &VirginPage::handleRenderProcessTerminated);
     connect(this, &QWebEnginePage::fullScreenRequested,
@@ -40,6 +45,13 @@ bool VirginPage::acceptNavigationRequest(const QUrl& url,
             emit popupBlocked(url);
             return false;
         }
+    }
+
+    // Keep executable script schemes out of external-scheme handling.  The
+    // external prompt is for OS handlers, never a route to execute page code.
+    if (security::UrlSafety::isScriptLikeScheme(url)) {
+        emit popupBlocked(url);
+        return false;
     }
 
     // Unknown/external schemes: INV-05, Sec 26.5
@@ -67,11 +79,6 @@ bool VirginPage::acceptNavigationRequest(const QUrl& url,
             return false;
         }
         return QWebEnginePage::acceptNavigationRequest(url, type, isMainFrame);
-    }
-
-    if (url.scheme() == "javascript") {
-        // Sec 26.3: javascript: URL navigation restrict to page context
-        if (!isMainFrame) return false;
     }
 
     if (!security::UrlSafety::isUrlAllowedForNavigation(url, type, isMainFrame)) {
@@ -135,24 +142,20 @@ void VirginPage::handleCertificateError(QWebEngineCertificateError error) {
     emit certificateErrorIntercepted(error.url(), error.description(), error.isOverridable());
 }
 
-void VirginPage::handlePermissionRequested(QWebEnginePermission permission) {
+void VirginPage::resolvePermissionRequest(
+    const QUrl& origin,
+    virgin::privacy::PermissionFeature feature,
+    const std::function<void(bool granted)>& applyDecision) {
     // INV-08 + Sec 20: default deny, per-site overrides, user prompt
-    if (!permission.isValid()) return;
-    const QUrl origin = permission.origin();
-    const auto feature = permission.permissionType();
     auto* pm = virgin::privacy::PermissionManager::instanceForProfile(profile());
     if (!pm) {
-        permission.deny();
+        applyDecision(false);
         return;
     }
     const bool hasEntry = pm->hasEntry(origin, feature);
     if (hasEntry) {
         auto result = pm->requestPermission(origin, feature);
-        if (result == virgin::privacy::PermissionManager::Decision::Granted) {
-            permission.grant();
-        } else {
-            permission.deny();
-        }
+        applyDecision(result == virgin::privacy::PermissionManager::Decision::Granted);
         return;
     }
 
@@ -168,13 +171,33 @@ void VirginPage::handlePermissionRequested(QWebEnginePermission permission) {
 
     if (granted) {
         if (remember) pm->setPermission(origin, feature, virgin::privacy::PermissionManager::Decision::Granted);
-        permission.grant();
     } else {
         if (remember) pm->setPermission(origin, feature, virgin::privacy::PermissionManager::Decision::Denied);
-        // If dialog rejected (user pressed Deny), still set Denied
-        permission.deny();
     }
+    applyDecision(granted);
 }
+
+#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
+void VirginPage::handlePermissionRequested(QWebEnginePermission permission) {
+    if (!permission.isValid()) return;
+    resolvePermissionRequest(permission.origin(), permission.permissionType(),
+        [permission](bool granted) {
+            if (granted) permission.grant();
+            else permission.deny();
+        });
+}
+#else
+void VirginPage::handlePermissionRequested(const QUrl& origin, QWebEnginePage::Feature feature) {
+    resolvePermissionRequest(origin, feature,
+        [this, origin, feature](bool granted) {
+            setFeaturePermission(
+                origin,
+                feature,
+                granted ? QWebEnginePage::PermissionGrantedByUser
+                        : QWebEnginePage::PermissionDeniedByUser);
+        });
+}
+#endif
 
 void VirginPage::handleRenderProcessTerminated(RenderProcessTerminationStatus status, int code) {
     Q_UNUSED(code)

@@ -3,6 +3,12 @@ function(virgin_enable_hardening target)
         return()
     endif()
 
+    if(MSVC)
+        target_compile_options(${target} PRIVATE /guard:cf /sdl)
+        target_link_options(${target} PRIVATE /guard:cf /DYNAMICBASE /NXCOMPAT)
+        return()
+    endif()
+
     include(CheckCXXCompilerFlag)
     include(CheckLinkerFlag)
 
@@ -12,9 +18,12 @@ function(virgin_enable_hardening target)
         target_compile_options(${target} PRIVATE -fstack-protector-strong)
     endif()
 
-    check_cxx_compiler_flag("-D_FORTIFY_SOURCE=3" HAS_FORTIFY)
+    check_cxx_compiler_flag("-U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3" HAS_FORTIFY)
     if(HAS_FORTIFY)
-        target_compile_definitions(${target} PRIVATE _FORTIFY_SOURCE=3)
+        # Ubuntu's GCC specs define _FORTIFY_SOURCE=2 by default. Undefining
+        # it first makes the desired level portable and avoids a Werror build
+        # failure from redefining the macro.
+        target_compile_options(${target} PRIVATE -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3)
     endif()
 
     check_cxx_compiler_flag("-fPIE" HAS_FPIE)
@@ -27,7 +36,9 @@ function(virgin_enable_hardening target)
         target_compile_options(${target} PRIVATE -fcf-protection=full)
     endif()
 
-    target_compile_options(${target} PRIVATE -fvisibility=hidden)
+    if(UNIX)
+        target_compile_options(${target} PRIVATE -fvisibility=hidden)
+    endif()
 
     # Linker hardening
     check_linker_flag(CXX "-pie" HAS_PIE)

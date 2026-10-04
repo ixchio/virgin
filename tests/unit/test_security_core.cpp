@@ -6,6 +6,7 @@
 
 #include <QCoreApplication>
 #include <QTemporaryDir>
+#include <QUrl>
 #include <iostream>
 
 namespace {
@@ -54,6 +55,14 @@ int main(int argc, char* argv[]) {
           "known internal page accepted");
     check(!virgin::security::UrlSafety::isVirginInternalUrlAllowed(QUrl("virgin://unknown")),
           "unknown internal page rejected");
+    const QUrl scriptUrl("javascript:alert(1)");
+    check(virgin::security::UrlSafety::isScriptLikeScheme(scriptUrl),
+          "script URL is identified before external handling");
+    check(!virgin::security::UrlSafety::isUrlAllowedForNavigation(
+              scriptUrl, QWebEnginePage::NavigationTypeLinkClicked, true),
+          "script URL navigation rejected");
+    check(!virgin::security::UrlSafety::isSafeForExternalLaunch(scriptUrl),
+          "script URL cannot launch an external application");
 
     QTemporaryDir directory;
     const QString path = directory.filePath("settings.json");

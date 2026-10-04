@@ -2,6 +2,7 @@
 #include "FilterCompiler.hpp"
 #include "AdBlockEngine.hpp"
 #include "app/Paths.hpp"
+#include "app/Version.hpp"
 
 #include <QFile>
 #include <QDir>
@@ -163,7 +164,8 @@ void FilterUpdater::fetchNext() {
     request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                          QNetworkRequest::NoLessSafeRedirectPolicy);
     request.setTransferTimeout(30'000);
-    request.setHeader(QNetworkRequest::UserAgentHeader, "Virgin/0.1 filter updater");
+    request.setHeader(QNetworkRequest::UserAgentHeader,
+                      QStringLiteral("Virgin/%1 filter updater").arg(app::kVersion));
     QNetworkReply* reply = network_->get(request);
     auto* payload = new QByteArray();
     payload->reserve(1024 * 1024);

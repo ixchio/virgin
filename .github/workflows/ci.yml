@@ -40,5 +40,5 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: virgin-linux-x86_64
-          path: dist/Virgin-0.1.0-x86_64.AppImage
+          path: dist/Virgin-0.2.0-x86_64.AppImage
           if-no-files-found: error

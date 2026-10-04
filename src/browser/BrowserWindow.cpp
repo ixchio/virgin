@@ -17,10 +17,12 @@
 #include "ui/PixelIcons.hpp"
 #include "downloads/DownloadShelf.hpp"
 #include "app/VirginApp.hpp"
+#include "app/Version.hpp"
 #include "privacy/CookieFilter.hpp"
 #include "privacy/PermissionManager.hpp"
 #include "adblock/AdBlockEngine.hpp"
 #include "adblock/FilterUpdater.hpp"
+#include "security/UrlSafety.hpp"
 
 #include <QVBoxLayout>
 #include <QLabel>
@@ -60,6 +62,7 @@ BrowserWindow::BrowserWindow(virgin::profiles::VirginProfile* profile,
 
     tabs_ = new TabManager(profile_, history_, this);
     nav_ = new NavigationController(tabs_, settings_, this);
+    refreshHomeUrl();
 
     auto* central = new QWidget(this);
     auto* vbox = new QVBoxLayout(central);
@@ -110,6 +113,14 @@ BrowserWindow::BrowserWindow(virgin::profiles::VirginProfile* profile,
 
     updatePrivateIndicator();
     updateShieldBadge();
+
+    if (!isPrivate && sessions_ && profile_ &&
+        profile_->type() == profiles::VirginProfile::Type::Normal) {
+        sessionSaveTimer_ = new QTimer(this);
+        sessionSaveTimer_->setInterval(15'000);
+        connect(sessionSaveTimer_, &QTimer::timeout, this, &BrowserWindow::saveSession);
+        sessionSaveTimer_->start();
+    }
 }
 
 BrowserWindow::~BrowserWindow() = default;
@@ -155,7 +166,9 @@ void BrowserWindow::setupToolbar() {
     toolbar_->addWidget(stopBtn_);
     toolbar_->addWidget(homeBtn_);
 
-    omnibox_ = new virgin::ui::Omnibox(history_, bookmarks_, this);
+    const bool privateMode = profile_ && profile_->isOffTheRecord();
+    omnibox_ = new virgin::ui::Omnibox(privateMode ? nullptr : history_,
+                                       privateMode ? nullptr : bookmarks_, this);
     if (profile_ && profile_->isOffTheRecord()) {
         omnibox_->setPlaceholderText("Search or enter address (private)");
     } else {
@@ -188,29 +201,29 @@ void BrowserWindow::setupToolbar() {
 
 void BrowserWindow::setupMenus() {
     auto* fileMenu = menuBar()->addMenu("&File");
-    fileMenu->addAction("New Tab", QKeySequence("Ctrl+T"), this, &BrowserWindow::onNewTab);
-    fileMenu->addAction("Duplicate Tab", QKeySequence("Ctrl+Shift+K"), this, &BrowserWindow::onDuplicateTab);
-    fileMenu->addAction("Close Tab", QKeySequence("Ctrl+W"), this, &BrowserWindow::onCloseTab);
-    fileMenu->addAction("Reopen Closed Tab", QKeySequence("Ctrl+Shift+T"), this, &BrowserWindow::onReopenTab);
+    fileMenu->addAction("New Tab", this, &BrowserWindow::onNewTab, QKeySequence("Ctrl+T"));
+    fileMenu->addAction("Duplicate Tab", this, &BrowserWindow::onDuplicateTab, QKeySequence("Ctrl+Shift+K"));
+    fileMenu->addAction("Close Tab", this, &BrowserWindow::onCloseTab, QKeySequence("Ctrl+W"));
+    fileMenu->addAction("Reopen Closed Tab", this, &BrowserWindow::onReopenTab, QKeySequence("Ctrl+Shift+T"));
     fileMenu->addSeparator();
-    fileMenu->addAction("New Private Window", QKeySequence("Ctrl+Shift+P"), this, &BrowserWindow::onPrivateWindow);
+    fileMenu->addAction("New Private Window", this, &BrowserWindow::onPrivateWindow, QKeySequence("Ctrl+Shift+P"));
     fileMenu->addAction("New Container Window…", this, &BrowserWindow::onContainerWindow);
     fileMenu->addAction("Manage Containers…", this, &BrowserWindow::onManageContainers);
     fileMenu->addSeparator();
-    fileMenu->addAction("Bookmark This Page", QKeySequence("Ctrl+D"), this, &BrowserWindow::onBookmarkToggle);
+    fileMenu->addAction("Bookmark This Page", this, &BrowserWindow::onBookmarkToggle, QKeySequence("Ctrl+D"));
     fileMenu->addSeparator();
-    fileMenu->addAction("Panic (close private)", QKeySequence("Ctrl+Shift+X"), this, &BrowserWindow::onPanic);
+    fileMenu->addAction("Panic (close private)", this, &BrowserWindow::onPanic, QKeySequence("Ctrl+Shift+X"));
 
     auto* editMenu = menuBar()->addMenu("&Edit");
-    editMenu->addAction("Focus Address Bar", QKeySequence("Ctrl+L"), this, &BrowserWindow::onFocusOmnibox);
+    editMenu->addAction("Focus Address Bar", this, &BrowserWindow::onFocusOmnibox, QKeySequence("Ctrl+L"));
 
     auto* viewMenu = menuBar()->addMenu("&View");
-    viewMenu->addAction("Reload", QKeySequence("Ctrl+R"), this, &BrowserWindow::onReload);
-    viewMenu->addAction("Full Screen", QKeySequence("F11"), [this]{ onFullScreenRequested(!isFullScreen_); });
+    viewMenu->addAction("Reload", this, &BrowserWindow::onReload, QKeySequence("Ctrl+R"));
+    viewMenu->addAction("Full Screen", [this]{ onFullScreenRequested(!isFullScreen_); }, QKeySequence("F11"));
     viewMenu->addSeparator();
-    viewMenu->addAction("History", QKeySequence("Ctrl+H"), this, &BrowserWindow::onShowHistory);
-    viewMenu->addAction("Bookmarks", QKeySequence("Ctrl+Shift+O"), this, &BrowserWindow::onShowBookmarks);
-    viewMenu->addAction("Downloads", QKeySequence("Ctrl+J"), this, &BrowserWindow::onShowDownloads);
+    viewMenu->addAction("History", this, &BrowserWindow::onShowHistory, QKeySequence("Ctrl+H"));
+    viewMenu->addAction("Bookmarks", this, &BrowserWindow::onShowBookmarks, QKeySequence("Ctrl+Shift+O"));
+    viewMenu->addAction("Downloads", this, &BrowserWindow::onShowDownloads, QKeySequence("Ctrl+J"));
     viewMenu->addSeparator();
     viewMenu->addAction("Settings", this, &BrowserWindow::onShowSettings);
     viewMenu->addAction("Update Filter Lists", this, &BrowserWindow::onUpdateFilters);
@@ -219,12 +232,14 @@ void BrowserWindow::setupMenus() {
     helpMenu->addAction("About Virgin", [this]{
         bool isPrivate = profile_ && profile_->isOffTheRecord();
         QMessageBox::about(this, "About Virgin",
-            QString("<h2>Virgin 0.1.0</h2>"
-            "<p>Security profile — %1</p>"
+            QString("<h2>Virgin %1</h2>"
+            "<p>Security profile — %2</p>"
             "<p>A small, local-first browser built with Qt WebEngine.</p>"
             "<p>No Virgin account, cloud service, telemetry, or crash uploader.</p>"
             "<p>Private windows keep browsing state in memory. Strict mode adds stronger cookie and canvas restrictions.</p>"
-            "<p><a href='virgin://version'>virgin://version</a> · <a href='virgin://newtab'>virgin://newtab</a></p>").arg(isPrivate ? "Private Window" : "Normal Window"));
+            "<p><a href='virgin://version'>virgin://version</a> · <a href='virgin://newtab'>virgin://newtab</a></p>")
+            .arg(QString::fromLatin1(app::kVersion),
+                 isPrivate ? QStringLiteral("Private Window") : QStringLiteral("Normal Window")));
     });
 }
 
@@ -242,9 +257,9 @@ void BrowserWindow::openInitialPage() {
     if (!sessionRestored_) {
         // Private windows never restore
         if (profile_ && profile_->isOffTheRecord()) {
-            tabs_->createTab(QUrl("virgin://newtab"), true);
+            tabs_->createTab(homeUrl_, true);
         } else if (!restoreSession()) {
-            tabs_->createTab(QUrl(), true);
+            tabs_->createTab(homeUrl_, true);
         }
         sessionRestored_ = true;
     }
@@ -298,6 +313,21 @@ void BrowserWindow::onForward() { if (auto* t = tabs_->currentTab()) t->view()->
 void BrowserWindow::onReload() { if (auto* t = tabs_->currentTab()) t->reload(); }
 void BrowserWindow::onStop() { if (auto* t = tabs_->currentTab()) t->stop(); }
 void BrowserWindow::onHome() { nav_->navigate(homeUrl_); }
+
+void BrowserWindow::refreshHomeUrl() {
+    const QString configured = settings_
+        ? settings_->value("homepage", "virgin://newtab").toString().trimmed()
+        : QStringLiteral("virgin://newtab");
+    const QUrl candidate = QUrl::fromUserInput(configured);
+    const QString scheme = candidate.scheme().toLower();
+    if (!candidate.isValid() || candidate.isEmpty() ||
+        (scheme != QStringLiteral("http") && scheme != QStringLiteral("https") &&
+         (scheme != QStringLiteral("virgin") || !security::UrlSafety::isVirginInternalUrlAllowed(candidate)))) {
+        homeUrl_ = QUrl(QStringLiteral("virgin://newtab"));
+        return;
+    }
+    homeUrl_ = candidate;
+}
 void BrowserWindow::onBookmarkToggle() {
     if (profile_ && profile_->isOffTheRecord()) {
         QMessageBox::information(this, "Bookmarks", "Bookmarks are not saved from private windows.");
@@ -431,6 +461,7 @@ void BrowserWindow::onShowDownloads() {
 void BrowserWindow::onShowSettings() {
     virgin::ui::SettingsDialog dlg(settings_, this);
     if (dlg.exec() == QDialog::Accepted) {
+        refreshHomeUrl();
         bool strict = settings_->strictMode();
         if (profile_ && !profile_->isOffTheRecord()) {
             profile_->setStrictMode(strict);
@@ -520,9 +551,10 @@ void BrowserWindow::onActiveTabChanged(BrowserTab* tab) {
     updateNavButtons();
     updateBookmarkButton();
     connect(tab, &BrowserTab::titleChanged, this, &BrowserWindow::onCurrentTabTitleChanged, Qt::UniqueConnection);
-    if (omnibox_ && history_ && bookmarks_) {
-        omnibox_->setHistoryStore(history_);
-        omnibox_->setBookmarkStore(bookmarks_);
+    if (omnibox_) {
+        const bool privateMode = profile_ && profile_->isOffTheRecord();
+        omnibox_->setHistoryStore(privateMode ? nullptr : history_);
+        omnibox_->setBookmarkStore(privateMode ? nullptr : bookmarks_);
     }
     updatePrivateIndicator();
 }
@@ -603,7 +635,7 @@ void BrowserWindow::onOmniboxReturnPressed(const QString& text) {
     nav_->navigateCurrent(text);
 }
 
-void BrowserWindow::onPermissionRequested(const QUrl& origin, QWebEnginePermission::PermissionType feature) {
+void BrowserWindow::onPermissionRequested(const QUrl& origin, virgin::privacy::PermissionFeature feature) {
     Q_UNUSED(origin) Q_UNUSED(feature)
     // VirginPage already shows PermissionDialog synchronously; we just update shield
     if (privacyPanel_) privacyPanel_->setUrl(tabs_->currentTab() ? tabs_->currentTab()->url() : QUrl());
@@ -697,7 +729,7 @@ void BrowserWindow::updatePrivacyPanel() {
     const QString canvasState = profile_->canvasReadsBlocked() ? "BLOCK" : "ALLOW";
     const QString webrtcState = profile_->webRtcPublicOnly() ? "PUBLIC ONLY" : "DEFAULT";
 
-    auto permissionState = [this, &cur](QWebEnginePermission::PermissionType feature) {
+    auto permissionState = [this, &cur](virgin::privacy::PermissionFeature feature) {
         auto* manager = profile_->permissionManager();
         if (!manager || cur.host().isEmpty() || !manager->hasEntry(cur, feature)) return QString("ASK");
         const auto decision = manager->storedDecision(cur, feature);
@@ -705,9 +737,9 @@ void BrowserWindow::updatePrivacyPanel() {
             ? QString("ALLOW") : QString("BLOCK");
     };
     const QString permissions = QString("Location    %1\nCamera      %2\nMicrophone  %3")
-        .arg(permissionState(QWebEnginePermission::PermissionType::Geolocation))
-        .arg(permissionState(QWebEnginePermission::PermissionType::MediaVideoCapture))
-        .arg(permissionState(QWebEnginePermission::PermissionType::MediaAudioCapture));
+        .arg(permissionState(virgin::privacy::PermissionGeolocation))
+        .arg(permissionState(virgin::privacy::PermissionMediaVideoCapture))
+        .arg(permissionState(virgin::privacy::PermissionMediaAudioCapture));
     privacyPanel_->setProtectionDetails(cookieState, canvasState, webrtcState, permissions);
 
     if (site.blocked > 0) {

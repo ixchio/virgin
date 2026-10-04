@@ -1,4 +1,5 @@
 #include "VirginSchemeHandler.hpp"
+#include "app/Version.hpp"
 #include <QBuffer>
 #include <QCoreApplication>
 #include <QFile>
@@ -74,7 +75,7 @@ QByteArray VirginSchemeHandler::versionHtml() {
     QByteArray html = QByteArray(R"(
 <!doctype html><html><head><meta charset="utf-8"><title>About Virgin</title><meta name="color-scheme" content="light"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'">
 <style>body{font:14px Arial,Helvetica,sans-serif;background:#f7f7f7;color:#333;padding:36px}main{max-width:720px;margin:auto;background:#fff;border:1px solid #ccc;padding:28px}h1{font-size:24px;font-weight:400;margin-top:0}code{background:#f1f1f1;border:1px solid #d5d5d5;padding:2px 5px}a{color:#365f8d}</style></head>
-<body><main><h1>Virgin 0.1.0</h1>
+<body><main><h1>Virgin %0</h1>
 <p>Qt <code>%1</code> &nbsp; Chromium <code>%2</code></p>
 <p>Normal profile: persistent &nbsp; Private: off-the-record (memory only)</p>
 <p>Permissions: default deny &nbsp; WebRTC: public-interfaces-only &nbsp; Canvas: strict blocks reads</p>
@@ -83,7 +84,9 @@ QByteArray VirginSchemeHandler::versionHtml() {
 <p><a href="virgin://newtab">newtab</a> · <a href="virgin://history">history</a> · <a href="virgin://settings">settings</a></p>
 </main></body></html>
 )");
-    return html.replace("%1", qVersion()).replace("%2", qWebEngineChromiumVersion());
+    return html.replace("%0", app::kVersion)
+               .replace("%1", qVersion())
+               .replace("%2", qWebEngineChromiumVersion());
 }
 
 QByteArray VirginSchemeHandler::nativeToolHtml(const QByteArray& title,

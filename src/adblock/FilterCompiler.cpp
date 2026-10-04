@@ -13,6 +13,21 @@ constexpr quint32 kCacheFormat = 4U;
 constexpr quint64 kMaxNetworkRules = 500'000U;
 constexpr quint64 kMaxCosmeticRules = 500'000U;
 constexpr qint64 kMaxCacheBytes = 64 * 1024 * 1024;
+
+bool isAhoMatchKind(MatchKind kind) {
+    return kind == MatchKind::Substring || kind == MatchKind::StartAnchor ||
+           kind == MatchKind::EndAnchor;
+}
+
+void addAhoOrLinearFallback(const NetworkRule& rule, int id, AhoCorasick& aho,
+                            QVector<int>& linearIds) {
+    if (!isAhoMatchKind(rule.kind) || rule.pattern.isEmpty()) return;
+    if (rule.pattern.size() <= 256) {
+        aho.addPattern(rule.pattern.toLower(), id);
+    } else {
+        linearIds.append(id);
+    }
+}
 }
 
 std::shared_ptr<CompiledRules> FilterCompiler::compile(const QString& raw) {
@@ -64,17 +79,13 @@ std::shared_ptr<CompiledRules> FilterCompiler::compile(const QString& raw) {
     // Stage 4: Aho-Corasick for substring patterns (include all non-suffix, non-regex)
     for (size_t i = 0; i < compiled->blockRules.size(); ++i) {
         const auto& r = compiled->blockRules[i];
-        if (r.kind == MatchKind::Substring || r.kind == MatchKind::StartAnchor || r.kind == MatchKind::EndAnchor) {
-            if (!r.pattern.isEmpty() && r.pattern.size() <= 256)
-                compiled->blockAho.addPattern(r.pattern.toLower(), (int)i);
-        }
+        addAhoOrLinearFallback(r, static_cast<int>(i), compiled->blockAho,
+                               compiled->blockLinearIds);
     }
     for (size_t i = 0; i < compiled->allowRules.size(); ++i) {
         const auto& r = compiled->allowRules[i];
-        if (r.kind == MatchKind::Substring || r.kind == MatchKind::StartAnchor || r.kind == MatchKind::EndAnchor) {
-            if (!r.pattern.isEmpty() && r.pattern.size() <= 256)
-                compiled->allowAho.addPattern(r.pattern.toLower(), (int)i);
-        }
+        addAhoOrLinearFallback(r, static_cast<int>(i), compiled->allowAho,
+                               compiled->allowLinearIds);
     }
     compiled->blockAho.build();
     compiled->allowAho.build();
@@ -109,7 +120,8 @@ bool FilterCompiler::writeCache(const CompiledRules& rules, const QString& path)
     QSaveFile f(path);
     if (!f.open(QIODevice::WriteOnly)) return false;
     QDataStream out(&f);
-    out.setVersion(QDataStream::Qt_6_5);
+    // Keep the on-disk cache readable by the portable Qt 6.2 AppImage build.
+    out.setVersion(QDataStream::Qt_6_2);
     out << kCacheMagic << kCacheFormat;
     out << (quint64)rules.version;
     out << (quint64)rules.blockRules.size();
@@ -141,7 +153,7 @@ std::shared_ptr<CompiledRules> FilterCompiler::readCache(const QString& path) {
     QFile f(path);
     if (!f.open(QIODevice::ReadOnly) || f.size() <= 0 || f.size() > kMaxCacheBytes) return nullptr;
     QDataStream in(&f);
-    in.setVersion(QDataStream::Qt_6_5);
+    in.setVersion(QDataStream::Qt_6_2);
     quint32 magic = 0;
     quint32 format = 0;
     in >> magic >> format;
@@ -210,17 +222,13 @@ std::shared_ptr<CompiledRules> FilterCompiler::readCache(const QString& path) {
     compiled->allowTokenIndex.build(compiled->allowRules);
     for (size_t i = 0; i < compiled->blockRules.size(); ++i) {
         const auto& r = compiled->blockRules[i];
-        if (r.kind == MatchKind::Substring || r.kind == MatchKind::StartAnchor || r.kind == MatchKind::EndAnchor) {
-            if (!r.pattern.isEmpty() && r.pattern.size() <= 256)
-                compiled->blockAho.addPattern(r.pattern.toLower(), (int)i);
-        }
+        addAhoOrLinearFallback(r, static_cast<int>(i), compiled->blockAho,
+                               compiled->blockLinearIds);
     }
     for (size_t i = 0; i < compiled->allowRules.size(); ++i) {
         const auto& r = compiled->allowRules[i];
-        if (r.kind == MatchKind::Substring || r.kind == MatchKind::StartAnchor || r.kind == MatchKind::EndAnchor) {
-            if (!r.pattern.isEmpty() && r.pattern.size() <= 256)
-                compiled->allowAho.addPattern(r.pattern.toLower(), (int)i);
-        }
+        addAhoOrLinearFallback(r, static_cast<int>(i), compiled->allowAho,
+                               compiled->allowLinearIds);
     }
     compiled->blockAho.build();
     compiled->allowAho.build();

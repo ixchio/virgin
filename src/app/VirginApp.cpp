@@ -1,5 +1,6 @@
 #include "VirginApp.hpp"
 #include "Paths.hpp"
+#include "app/Version.hpp"
 
 #include "profiles/ProfileManager.hpp"
 #include "profiles/VirginProfile.hpp"
@@ -36,7 +37,7 @@ VirginApp::VirginApp(int& argc, char** argv)
 {
     s_instance = this;
     QCoreApplication::setApplicationName("Virgin");
-    QCoreApplication::setApplicationVersion("0.1.0");
+    QCoreApplication::setApplicationVersion(QString::fromLatin1(kVersion));
     QCoreApplication::setOrganizationName("Virgin");
     QCoreApplication::setOrganizationDomain("virgin.local");
     QCoreApplication::setAttribute(Qt::AA_ShareOpenGLContexts, true);

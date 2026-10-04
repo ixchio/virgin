@@ -4,7 +4,12 @@ set -euo pipefail
 
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 project_dir="$(cd -- "$script_dir/.." && pwd)"
-appimage_source="${1:-$project_dir/dist/Virgin-0.1.0-x86_64.AppImage}"
+release_version="$(sed -nE 's/^[[:space:]]*VERSION[[:space:]]+([^[:space:]]+).*/\1/p' "${project_dir}/CMakeLists.txt" | head -n 1)"
+if [[ -z "${release_version}" ]]; then
+    echo "Could not determine the Virgin version from CMakeLists.txt" >&2
+    exit 1
+fi
+appimage_source="${1:-$project_dir/dist/Virgin-${release_version}-x86_64.AppImage}"
 
 if [[ ! -f "$appimage_source" ]]; then
     echo "Virgin AppImage not found: $appimage_source" >&2
