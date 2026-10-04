@@ -25,6 +25,7 @@
 #include "security/UrlSafety.hpp"
 
 #include <QVBoxLayout>
+#include <QAction>
 #include <QLabel>
 #include <QToolButton>
 #include <QShortcut>
@@ -200,30 +201,37 @@ void BrowserWindow::setupToolbar() {
 }
 
 void BrowserWindow::setupMenus() {
+    const auto addShortcutAction = [this](QMenu* menu, const QString& label,
+                                          const QKeySequence& shortcut, auto handler) {
+        auto* action = menu->addAction(label);
+        action->setShortcut(shortcut);
+        connect(action, &QAction::triggered, this, handler);
+    };
+
     auto* fileMenu = menuBar()->addMenu("&File");
-    fileMenu->addAction("New Tab", this, &BrowserWindow::onNewTab, QKeySequence("Ctrl+T"));
-    fileMenu->addAction("Duplicate Tab", this, &BrowserWindow::onDuplicateTab, QKeySequence("Ctrl+Shift+K"));
-    fileMenu->addAction("Close Tab", this, &BrowserWindow::onCloseTab, QKeySequence("Ctrl+W"));
-    fileMenu->addAction("Reopen Closed Tab", this, &BrowserWindow::onReopenTab, QKeySequence("Ctrl+Shift+T"));
+    addShortcutAction(fileMenu, "New Tab", QKeySequence("Ctrl+T"), &BrowserWindow::onNewTab);
+    addShortcutAction(fileMenu, "Duplicate Tab", QKeySequence("Ctrl+Shift+K"), &BrowserWindow::onDuplicateTab);
+    addShortcutAction(fileMenu, "Close Tab", QKeySequence("Ctrl+W"), &BrowserWindow::onCloseTab);
+    addShortcutAction(fileMenu, "Reopen Closed Tab", QKeySequence("Ctrl+Shift+T"), &BrowserWindow::onReopenTab);
     fileMenu->addSeparator();
-    fileMenu->addAction("New Private Window", this, &BrowserWindow::onPrivateWindow, QKeySequence("Ctrl+Shift+P"));
+    addShortcutAction(fileMenu, "New Private Window", QKeySequence("Ctrl+Shift+P"), &BrowserWindow::onPrivateWindow);
     fileMenu->addAction("New Container Window…", this, &BrowserWindow::onContainerWindow);
     fileMenu->addAction("Manage Containers…", this, &BrowserWindow::onManageContainers);
     fileMenu->addSeparator();
-    fileMenu->addAction("Bookmark This Page", this, &BrowserWindow::onBookmarkToggle, QKeySequence("Ctrl+D"));
+    addShortcutAction(fileMenu, "Bookmark This Page", QKeySequence("Ctrl+D"), &BrowserWindow::onBookmarkToggle);
     fileMenu->addSeparator();
-    fileMenu->addAction("Panic (close private)", this, &BrowserWindow::onPanic, QKeySequence("Ctrl+Shift+X"));
+    addShortcutAction(fileMenu, "Panic (close private)", QKeySequence("Ctrl+Shift+X"), &BrowserWindow::onPanic);
 
     auto* editMenu = menuBar()->addMenu("&Edit");
-    editMenu->addAction("Focus Address Bar", this, &BrowserWindow::onFocusOmnibox, QKeySequence("Ctrl+L"));
+    addShortcutAction(editMenu, "Focus Address Bar", QKeySequence("Ctrl+L"), &BrowserWindow::onFocusOmnibox);
 
     auto* viewMenu = menuBar()->addMenu("&View");
-    viewMenu->addAction("Reload", this, &BrowserWindow::onReload, QKeySequence("Ctrl+R"));
-    viewMenu->addAction("Full Screen", [this]{ onFullScreenRequested(!isFullScreen_); }, QKeySequence("F11"));
+    addShortcutAction(viewMenu, "Reload", QKeySequence("Ctrl+R"), &BrowserWindow::onReload);
+    addShortcutAction(viewMenu, "Full Screen", QKeySequence("F11"), [this]{ onFullScreenRequested(!isFullScreen_); });
     viewMenu->addSeparator();
-    viewMenu->addAction("History", this, &BrowserWindow::onShowHistory, QKeySequence("Ctrl+H"));
-    viewMenu->addAction("Bookmarks", this, &BrowserWindow::onShowBookmarks, QKeySequence("Ctrl+Shift+O"));
-    viewMenu->addAction("Downloads", this, &BrowserWindow::onShowDownloads, QKeySequence("Ctrl+J"));
+    addShortcutAction(viewMenu, "History", QKeySequence("Ctrl+H"), &BrowserWindow::onShowHistory);
+    addShortcutAction(viewMenu, "Bookmarks", QKeySequence("Ctrl+Shift+O"), &BrowserWindow::onShowBookmarks);
+    addShortcutAction(viewMenu, "Downloads", QKeySequence("Ctrl+J"), &BrowserWindow::onShowDownloads);
     viewMenu->addSeparator();
     viewMenu->addAction("Settings", this, &BrowserWindow::onShowSettings);
     viewMenu->addAction("Update Filter Lists", this, &BrowserWindow::onUpdateFilters);
