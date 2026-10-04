@@ -90,20 +90,35 @@ struct CompiledRules {
 class RuleStore final {
 public:
     RuleStore() {
+#if defined(__cpp_lib_atomic_shared_ptr) && __cpp_lib_atomic_shared_ptr >= 201711L
+        rules_.store(std::make_shared<CompiledRules>());
+#else
         std::shared_ptr<const CompiledRules> initial = std::make_shared<CompiledRules>();
         std::atomic_store(&rules_, std::move(initial));
+#endif
     }
     std::shared_ptr<const CompiledRules> load() const {
+#if defined(__cpp_lib_atomic_shared_ptr) && __cpp_lib_atomic_shared_ptr >= 201711L
+        return rules_.load(std::memory_order_acquire);
+#else
         return std::atomic_load_explicit(&rules_, std::memory_order_acquire);
+#endif
     }
     void store(std::shared_ptr<const CompiledRules> rules) {
+#if defined(__cpp_lib_atomic_shared_ptr) && __cpp_lib_atomic_shared_ptr >= 201711L
+        rules_.store(std::move(rules), std::memory_order_release);
+#else
         std::atomic_store_explicit(&rules_, std::move(rules), std::memory_order_release);
+#endif
     }
 
 private:
-    // The free atomic operations for shared_ptr are supported by libstdc++ 11
-    // (Ubuntu 22.04), unlike std::atomic<shared_ptr<T>>.
+#if defined(__cpp_lib_atomic_shared_ptr) && __cpp_lib_atomic_shared_ptr >= 201711L
+    std::atomic<std::shared_ptr<const CompiledRules>> rules_;
+#else
+    // libstdc++ 11 (Ubuntu 22.04) predates std::atomic<shared_ptr<T>>.
     std::shared_ptr<const CompiledRules> rules_;
+#endif
 };
 
 struct BlockResult {
